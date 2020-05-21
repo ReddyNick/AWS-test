@@ -11,6 +11,7 @@
 int main()
 {
     int sockfd, newsockfd;
+    pid_t mypid = getpid();
     int clilen;
     int n;
     char line[1000];
@@ -45,21 +46,24 @@ int main()
             close(sockfd);
             exit(1);
         }
-
-        while((n = read(newsockfd, line, 999)) > 0){
-            if ((n = write(newsockfd, line, strlen(line) + 1)) < 0){
+        if (!fork()){
+            close(sockfd);
+            while((n = read(newsockfd, line, 999)) > 0){
+                if ((n = write(newsockfd, line, strlen(line) + 1)) < 0){
+                    perror(NULL);
+                    close(newsockfd);
+                    exit(1);
+                }
+            }
+            if (n < 0){
                 perror(NULL);
-                close(sockfd);
                 close(newsockfd);
                 exit(1);
             }
-        }
-        if (n < 0){
-            perror(NULL);
-            close(sockfd);
             close(newsockfd);
-            exit(1);
+            exit(0);
         }
+        
         close(newsockfd);
     }
 }
