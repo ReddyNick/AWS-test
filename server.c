@@ -1,55 +1,65 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 int main()
 {
-    int sock, listener;
-    struct sockaddr_in addr;
-    char buf[1024];
-    int bytes_read;
+    int sockfd, newsockfd;
+    int clilen;
+    int n;
+    char line[1000];
+    struct sockaddr_in servaddr, cliaddr;
 
-    listener = socket(AF_INET, SOCK_STREAM, 0);
-    if(listener < 0)
-    {
-        perror("socket");
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        perror(NULL);
         exit(1);
     }
-    
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(3425);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if(bind(listener, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-    {
-        perror("bind");
-        exit(2);
+
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(51000);
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (bind(sockfd, (struct sockaddr*)& servaddr, sizeof(servaddr)) < 0){
+        perror(NULL);
+        close(sockfd);
+        exit(1);
+    } 
+
+    if (listen(sockfd, 5) < 0){
+        perror(NULL);
+        close(sockfd);
+        exit(1);
     }
 
-    listen(listener, 1);
-    
-    while(1)
-    {
-        sock = accept(listener, NULL, NULL);
-        if(sock < 0)
-        {
-            perror("accept");
-            exit(3);
+    while(1) {
+        clilen = sizeof(cliaddr);
+        if ((newsockfd = accept(sockfd, (struct sockaddr*)& cliaddr, &clilen)) < 0){
+            perror(NULL);
+            close(sockfd);
+            exit(1);
         }
 
-        while(1)
-        {
-            bytes_read = recv(sock, buf, 1024, 0);
-            if(bytes_read <= 0) break;
-            send(sock, buf, bytes_read, 0);
+        while((n = read(newsockfd, line, 999)) > 0){
+            if ((n = write(newsockfd, line, strlen(line) + 1)) < 0){
+                perror(NULL);
+                close(sockfd);
+                close(newsockfd);
+                exit(1);
+            }
         }
-    
-        close(sock);
+        if (n < 0){
+            perror(NULL);
+            close(sockfd);
+            close(newsockfd);
+            exit(1);
+        }
+        close(newsockfd);
     }
-    
-    return 0;
 }
