@@ -1,4 +1,5 @@
 #include <header.h>
+#include <math.h>
 
 int routine(double* res, struct task mytask);
 

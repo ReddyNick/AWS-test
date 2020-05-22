@@ -193,7 +193,7 @@ void* routine(void* task)
     if (write(fd, task, sizeof(struct task)) < size_task) {
         printf("Cannot send task to worker_%d\n", id);
         close(workers[id]);
-        exit(1);
+        pthread_exit((void*)0);
     }
 
     printf("<Waiting results from worker_%d>\n", id);
@@ -210,7 +210,7 @@ void* routine(void* task)
     if (retval < res_size) {
         printf("Cannot recieve answer from worker_%d\n", id);
         close(workers[id]);
-        exit(1);
+        pthread_exit((void*)0);
     }
 
     printf("Received results from worker_%d>\n", id);
@@ -219,7 +219,7 @@ void* routine(void* task)
     pthread_mutex_unlock (&mutexsum);
 
     close(workers[id]);
-    return 0;
+    pthread_exit((void*)0);
 }
 
 int accept_tcp(int listenfd)
