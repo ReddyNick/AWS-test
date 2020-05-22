@@ -43,9 +43,10 @@ int main()
     
     // receiving task
     struct task mytask;
+    int size_task = sizeof(mytask);
     printf("<Waiting for task>...");
     
-    if (read(tcp, &mytask, sizeof(mytask)) < sizeof(mytask)) {
+    if (read(tcp, &mytask, sizeof(mytask)) < size_task) {
         printf("Can't recieve task from the server!\n");
         close(tcp); close(udp);
         exit(1);
@@ -55,13 +56,14 @@ int main()
 
     //start caclulation
     double res = -1;
+    int size_res = sizeof(res);
     printf("<Working>...");
     routine(&res, mytask);
 
 
     //sending task to the server
     printf("completed!\n""<Sending result to the server>\n\n");
-    if ((write(tcp, (void*)&res, sizeof(res))) < sizeof(res)) {
+    if ((write(tcp, (void*)&res, sizeof(res))) < size_res) {
         printf("Can't send result to the server\n");
         close(tcp); close(udp);
         exit(1);
