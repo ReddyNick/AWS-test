@@ -1,48 +1,20 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <strings.h>
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/select.h>
-#include <assert.h>
-#include <fcntl.h>
-#include <netinet/tcp.h>
-#include <pthread.h>
+#include <header.h>
 
-#define check_neg(x, str) do { \
-                            if ((x) < 0) {\
-                                perror(str);\
-                                exit(1); } \
-                        } while(0)
-
-
-const int PORT = 51001;
-const int PORT_worker = 51000;
-#define MAX_WORKERS 20
 const char* broadcast_msg = "WORK!";
+
+#define MAX_WORKERS 20
 int workers[MAX_WORKERS];
-
-int parse_num(int argc, char* argv[]);
-int make_broadcast(struct sockaddr_in serv_addr);
-int accept_tcp(int listenfd);
-void* routine(void* arg);
-
-struct task {
-    int worker_id;
-    double from, to, dx;
-};
-
-pthread_mutex_t mutexsum;
 
 const double START = 0; 
 const double END = 2500;
 const double dx = 1e-6;
 double SUM = 0;
+pthread_mutex_t mutexsum;
+
+int parse_num(int argc, char* argv[]);
+int make_broadcast(struct sockaddr_in serv_addr);
+int accept_tcp(int listenfd);
+void* routine(void* arg);
 
 int main(int argc, char* argv[])
 {
@@ -58,23 +30,22 @@ int main(int argc, char* argv[])
 
     struct sockaddr_in serv_addr = {
       .sin_family = AF_INET,
-      .sin_port = htons(PORT),
+      .sin_port = htons(PORT_server),
       .sin_addr = htonl(INADDR_ANY)
     };
 
-    /**
-     * BROADCAST PROCESS to discover available workers
-    */
+    /* BROADCAST PROCESS to discover available workers*/
     printf("<BROADCASTIN>...");
     if (make_broadcast(serv_addr) < 0){
         exit(1);
     }
     printf("completed!\n");
 
+    /* Create and configure TCP socket */
     int listenfd = socket(AF_INET, SOCK_STREAM, 0);
     int turn_on = 1;
-    int ret3 = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &turn_on, sizeof(int));
-    assert(ret3 == 0);
+    int ret = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &turn_on, sizeof(int));
+    assert(ret == 0);
 
 
     /* Set a socket as nonblocking */
@@ -103,6 +74,10 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    /** 
+     *  Waiting for 'num_workers' number of available computers
+     *  to be connected with the server
+     */
     int nready = 0;
     bzero(workers, sizeof(int) * MAX_WORKERS);
     fd_set set;
@@ -132,7 +107,7 @@ int main(int argc, char* argv[])
             break;
         }
 
-        
+        // configure tcp connection
         if ((connfd = accept_tcp(listenfd)) < 0) {
             perror("cant accept worker, waiting for another one\n");
             continue;
@@ -143,6 +118,11 @@ int main(int argc, char* argv[])
 
         printf("<Connected to %d/%d workers>...\n", nready, num_workers);
     }
+
+    /** 
+     * if not enough computer are available then
+     * stop work and exit
+     */
     if (!dicsovery) {
         fprintf(stderr, "Can't connected to %d workers\n", num_workers);
         close(listenfd);
@@ -151,8 +131,10 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    close(listenfd);
     printf("<Connection completed!>\n");
-    //DISTRIBUTE TASKS
+
+    // DISTRIBUTE TASKS
     printf("<Start distributing tasks>...\n");
 
     struct task* tasks = (struct task*)calloc(sizeof(struct task), num_workers);
@@ -193,15 +175,11 @@ int main(int argc, char* argv[])
         }
     }
 
-    
     printf("\nRESULT = %lg\n", SUM);
 
     pthread_mutex_destroy(&mutexsum);
     free(threads);
     free(tasks);
-   
-    
-    close(listenfd);
     return 0;   
 }
 
@@ -211,7 +189,8 @@ void* routine(void* task)
     int fd = workers[id];
     
     printf("<Sending task to worker_%d>\n", id);
-    if (write(fd, task, sizeof(struct task)) < sizeof(struct task)) {
+    int size_task = sizeof(struct task);
+    if (write(fd, task, sizeof(struct task)) < size_task) {
         printf("Cannot send task to worker_%d\n", id);
         close(workers[id]);
         exit(1);
@@ -227,8 +206,8 @@ void* routine(void* task)
 
     int retval;
     retval = recvfrom(fd, &res, sizeof(res), 0, NULL, NULL);
-    int double_size = 8;
-    if (retval < double_size) {
+    int res_size = sizeof(res);
+    if (retval < res_size) {
         printf("Cannot recieve answer from worker_%d\n", id);
         close(workers[id]);
         exit(1);
@@ -277,10 +256,10 @@ int make_broadcast(struct sockaddr_in serv_addr)
     assert(broadcastfd > 0);
     
     int broadcast_on = 1;
-    int ret1 = setsockopt(broadcastfd, SOL_SOCKET, SO_BROADCAST, &broadcast_on, sizeof(int));
-    assert(ret1 == 0);
-    int ret2 = setsockopt(broadcastfd, SOL_SOCKET, SO_REUSEADDR, &broadcast_on, sizeof(int));
-    assert(ret2 == 0);
+    int ret = setsockopt(broadcastfd, SOL_SOCKET, SO_BROADCAST, &broadcast_on, sizeof(int));
+    assert(ret == 0);
+    ret = setsockopt(broadcastfd, SOL_SOCKET, SO_REUSEADDR, &broadcast_on, sizeof(int));
+    assert(ret == 0);
 
     if (bind(broadcastfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
 		perror("Bind error in broadcating\n");
