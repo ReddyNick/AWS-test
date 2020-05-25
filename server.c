@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
         workers[nready] = connfd; 
         
         struct timeval tv;
-        tv.tv_sec = 18;
+        tv.tv_sec = 5;
         tv.tv_usec = 0;
         setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
