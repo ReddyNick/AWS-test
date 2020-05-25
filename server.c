@@ -225,7 +225,7 @@ void* routine(void* task)
     double res = -1;
 
     struct timeval tv;
-    tv.tv_sec = 18;
+    tv.tv_sec = 20;
     tv.tv_usec = 0;
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
