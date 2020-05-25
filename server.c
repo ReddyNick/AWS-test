@@ -4,6 +4,7 @@ const char* broadcast_msg = "WORK!";
 
 #define MAX_WORKERS 20
 int workers[MAX_WORKERS];
+int work_thr[MAX_WORKERS];
 
 const double START = 0; 
 const double END = 3500;
@@ -94,7 +95,6 @@ int main(int argc, char* argv[])
     int dicsovery = 1;
 
     while (nready < num_workers) {
-
         int ret = select(listenfd + 1, &set, NULL, NULL, &t);
         if (ret < 0){
             perror("Select ERROR\n");
@@ -113,7 +113,24 @@ int main(int argc, char* argv[])
             continue;
         }        
 
+
         workers[nready] = connfd; 
+        
+        struct timeval tv;
+        tv.tv_sec = 18;
+        tv.tv_usec = 0;
+        setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+        int retval;
+
+        retval = recvfrom(connfd, &work_thr[nready], sizeof(int), 0, NULL, NULL);
+        int res_size = sizeof(int);
+        
+        if (retval < res_size) {
+            printf("Cannot recieve answer from worker_%d\n", nready);
+            break;
+        }
+
         nready++;
 
         printf("<Connected to %d/%d workers>...\n", nready, num_workers);
@@ -147,14 +164,22 @@ int main(int argc, char* argv[])
     pthread_mutex_init(&mutexsum, NULL);
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-   
-    double per_worker = (END - START) / (double) num_workers;
+    
+    
+    int dist = 0;
+    for (int i = 0; i < num_workers; i++)
+        dist += work_thr[i];
+
+
+    double per_worker = (END - START) / (double) dist;
     int ret_code;
+    int beg = START;
     for (int i = 0; i < num_workers; i++) {
         tasks[i].worker_id = i;
-        tasks[i].from = START + i*per_worker;
-        tasks[i].to = START + (i+1)*per_worker;
+        tasks[i].from = beg;
+        tasks[i].to = beg + work_thr[i]*per_worker;
         tasks[i].dx = dx;
+        beg = beg + work_thr[i]*per_worker;
 
         ret_code = pthread_create(&threads[i], &attr, routine, (void *)&tasks[i]); 
         
