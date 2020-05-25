@@ -6,7 +6,7 @@ const char* broadcast_msg = "WORK!";
 int workers[MAX_WORKERS];
 
 const double START = 0; 
-const double END = 2500;
+const double END = 3500;
 const double dx = 1e-6;
 double SUM = 0;
 pthread_mutex_t mutexsum;
@@ -200,7 +200,7 @@ void* routine(void* task)
     double res = -1;
 
     struct timeval tv;
-    tv.tv_sec = 15;
+    tv.tv_sec = 18;
     tv.tv_usec = 0;
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
