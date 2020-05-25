@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
     pthread_mutex_destroy(&mutexsum);
     free(threads);
     
-    printf("%lg\n", SUM);
+    //printf("%lg\n", SUM);
 
     //-------------------------------------
 
